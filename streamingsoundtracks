@@ -7,20 +7,7 @@ send it to jabber accounts
 import re, time, xmpp
 from lxml.html import parse
 
-def getCurrentSong():
-    """(multi-line text about the current song, seconds left)"""
-
-    doc = parse("http://www.streamingsoundtracks.com/playing.php").getroot()
-
-    td = doc.cssselect('table tr')[1].find('td')
-    words = '\n'.join([w for w in td.text_content().strip().split("\r\n")[0].split("\t") if w])
-    words = words.rstrip(' ()')
-
-    script = td.find('script').text
-    m = re.search(r'countDownTime = (\d+)', script)
-    secondsLeft = int(m.group(1))
-    return words, secondsLeft
-
+# this whole class should come from some other library
 class XmppSender(object):
     def __init__(self, jid, server, password):
         jid=xmpp.protocol.JID(jid)
@@ -37,9 +24,31 @@ class XmppSender(object):
         self.cl.disconnect()
     __del__ = disconnect
 
-sender = XmppSender("soundtrackbot@jabber.bigasterisk.com", 'jabber.bigasterisk.com', open("bin/streamingsoundtracks.password").read().strip())
 
-while 1:
+
+
+
+def getCurrentSong():
+    """(multi-line text about the current song, seconds left)"""
+
+    doc = parse("http://www.streamingsoundtracks.com/playing.php").getroot()
+
+    td = doc.cssselect('table tr')[1].find('td')
+    words = '\n'.join([w for w in
+                       td.text_content().strip().split("\r\n")[0].split("\t")
+                       if w])
+    words = words.rstrip(' ()')
+
+    script = td.find('script').text
+    m = re.search(r'countDownTime = (\d+)', script)
+    secondsLeft = int(m.group(1))
+    return words, secondsLeft
+
+sender = XmppSender("soundtrackbot@jabber.bigasterisk.com",
+                    'jabber.bigasterisk.com',
+                    open("streamingsoundtracks.password").read().strip())
+
+while True:
     song, secondsLeft = getCurrentSong()
     sender.sendMessage("drewp@jabber.bigasterisk.com", song)
     time.sleep(secondsLeft)
