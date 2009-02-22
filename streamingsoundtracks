@@ -1,0 +1,45 @@
+#!/usr/bin/python
+"""
+poll streamingsoundtracks.com for the current playing song and
+send it to jabber accounts
+"""
+
+import re, time, xmpp
+from lxml.html import parse
+
+def getCurrentSong():
+    """(multi-line text about the current song, seconds left)"""
+
+    doc = parse("http://www.streamingsoundtracks.com/playing.php").getroot()
+
+    td = doc.cssselect('table tr')[1].find('td')
+    words = '\n'.join([w for w in td.text_content().strip().split("\r\n")[0].split("\t") if w])
+    words = words.rstrip(' ()')
+
+    script = td.find('script').text
+    m = re.search(r'countDownTime = (\d+)', script)
+    secondsLeft = int(m.group(1))
+    return words, secondsLeft
+
+class XmppSender(object):
+    def __init__(self, jid, server, password):
+        jid=xmpp.protocol.JID(jid)
+        self.cl=xmpp.Client(jid.getDomain(),debug=[])
+        if not self.cl.connect((server, 5222)):
+            raise IOError('Can not connect to server.')
+        if not self.cl.auth(jid.getNode(), password):
+            raise IOError('Can not auth with server.')
+
+    def sendMessage(self, recipient, text):
+        self.cl.send(xmpp.Message(recipient, text, typ='chat'))
+
+    def disconnect(self):
+        self.cl.disconnect()
+    __del__ = disconnect
+
+sender = XmppSender("soundtrackbot@jabber.bigasterisk.com", 'jabber.bigasterisk.com', open("bin/streamingsoundtracks.password").read().strip())
+
+while 1:
+    song, secondsLeft = getCurrentSong()
+    sender.sendMessage("drewp@jabber.bigasterisk.com", song)
+    time.sleep(secondsLeft)
